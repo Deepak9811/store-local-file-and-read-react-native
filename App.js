@@ -20,15 +20,30 @@ export default class App extends Component {
 
   componentDidMount() {
     RNFetchBlob.fs.readFile('/storage/emulated/0/Download/Vizsence.json', 'utf8')
-      .then((res) => {
-        console.log("local file read :- ", res);
-        // const d = JSON.parse(res);
+      .then((resp) => {
+        console.log("local file read :- ", resp);
+        // const d = JSON.parse(resp);
         // console.log("d.type :-",d.type)
-        // this.setState({ content: res, fruitType: d.type });
+        // this.setState({ content: resp, fruitType: d.type });
+        if(resp.length > 0){
+          console.log("resp .lenght  :- ", resp.length)
+          RNFetchBlob.fs.unlink('/storage/emulated/0/Download/Vizsence.json','utf8').then((res) => {
+            console.log("deleted file :- ", res)
+          })
+          .catch((err) => {
+            console.log("catch error :- ",err.message, err.code);
+          });
+        }else{
+          console.log("empty :- ")
+          this.checkPermission()
+        }
       })
       .catch((err) => {
         console.log(err.message, err.code);
       });
+
+      this.checkPermission()
+    
 
   }
 
