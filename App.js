@@ -6,44 +6,67 @@ import {
   StyleSheet,
   Platform,
   TouchableOpacity,
-  PermissionsAndroid, Button
+  PermissionsAndroid, Button, Alert
 } from 'react-native'
 import RNFetchBlob from 'rn-fetch-blob'
+
+import NetInfo from "@react-native-community/netinfo";
 
 export default class App extends Component {
   constructor(props) {
     super(props)
     this.state = {
       fileUrl: 'https://jsonplaceholder.typicode.com/posts',
+      deleteStatus: false,
     }
   }
 
   componentDidMount() {
-    RNFetchBlob.fs.readFile('/storage/emulated/0/Download/Vizsence.json', 'utf8')
-      .then((resp) => {
-        console.log("local file read :- ", resp);
-        // const d = JSON.parse(resp);
-        // console.log("d.type :-",d.type)
-        // this.setState({ content: resp, fruitType: d.type });
-        if(resp.length > 0){
-          console.log("resp .lenght  :- ", resp.length)
-          RNFetchBlob.fs.unlink('/storage/emulated/0/Download/Vizsence.json','utf8').then((res) => {
-            console.log("deleted file :- ", res)
-          })
-          .catch((err) => {
-            console.log("catch error :- ",err.message, err.code);
-          });
-        }else{
-          console.log("empty :- ")
+
+    //-----------------CHECK-INTERNET-CONNECTED-OR-NOT----------------------------------
+    NetInfo.addEventListener(state => {
+      console.log("Connection type ", state.type);
+      console.log("Is connected? ", state.isConnected);
+
+      if (state.isConnected === true) {
+
+        this.state.deleteStatus = true
+          // this.deleteLocalFile()
+      } else {
+        this.state.deleteStatus = false,
+          Alert.alert("Something wents wrong.", "Check your connections.", [{ text: "okay" }], { cancelable: true })
+      }
+    });
+
+
+  }
+
+  deleteLocalFile() {
+    if (this.state.deleteStatus === true) {
+      RNFetchBlob.fs.unlink('/storage/emulated/0/Download/Vizsence.json', 'utf8').then((resp) => {
+        console.log("deleted file :- ", resp)
+        if (resp === undefined) {
+          console.log("deleted file  ",)
           this.checkPermission()
+        } else {
+          console.log("don't know ")
         }
       })
-      .catch((err) => {
-        console.log(err.message, err.code);
-      });
+        .catch((err) => {
+          console.log("catch error :- ", err.message, err.code);
+          if(err.message === "Failed to delete '/storage/emulated/0/Download/Vizsence.json'"){
+            this.checkPermission()
+          }
+          // this.checkPermission()
+        });
 
-      this.checkPermission()
-    
+      // console.log("internet is connect.")
+    } else {
+      console.log("internet is not connect.")
+    }
+
+
+
 
   }
 
@@ -53,16 +76,6 @@ export default class App extends Component {
 
   async checkPermission() {
 
-    // RNFetchBlob.fs.readFile('/storage/emulated/0/Download/Vizsence.json', 'utf8')
-    // .then((res) => {
-    //   console.log("local file read :- ",res);
-    //   // const d = JSON.parse(res);
-    //   // console.log("d.type :-",d.type)
-    //   // this.setState({ content: res, fruitType: d.type });
-    // })
-    // .catch((err) => {
-    //   console.log(err.message, err.code);
-    // });
 
     if (Platform.OS === 'ios') {
       this.downloadFile();
@@ -77,30 +90,24 @@ export default class App extends Component {
           }
         );
         if (granted === PermissionsAndroid.RESULTS.GRANTED) {
-          // Start downloading
           this.downloadFile();
-          // console.log('Storage Permission Granted.');
         } else {
-          // If permission denied then show alert
           Alert.alert('Error', 'Storage Permission Not Granted');
         }
       } catch (err) {
-        // To handle permission related exception
         console.log("++++" + err);
       }
     }
   };
 
   downloadFile = () => {
-    // File URL which we want to download
     let FILE_URL = this.state.fileUrl;
-    // Function to get extention of the file url
+
     let file_ext = this.getFileExtention(FILE_URL);
 
     file_ext = '.' + file_ext[0];
 
-    // config: To get response by passing the downloading related options
-    // fs: Root directory path to download
+
     const { config, fs } = RNFetchBlob;
     let RootDir = fs.dirs.DownloadDir;
     console.log(RootDir)
@@ -112,16 +119,21 @@ export default class App extends Component {
           '/Vizsence' + file_ext,
         description: 'downloading file...',
         notification: true,
-        // useDownloadManager works with Android only
         useDownloadManager: true,
       },
     };
     config(options)
       .fetch('GET', FILE_URL)
       .then(res => {
-        // Alert after successful downloading
-        console.log('res -> ', JSON.stringify(res));
-        alert('File Downloaded Successfully.');
+        console.log('res -> ', JSON.stringify(res.data));
+        // alert('File Downloaded Successfully. ' + res.data );
+
+        if (res.data === "/storage/emulated/0/Download/Vizsence.json") {
+          console.log("check url work")
+          this.readLocalFile()
+        } else {
+          console.log("not working")
+        }
       });
   };
 
@@ -132,10 +144,24 @@ export default class App extends Component {
   };
 
 
+  readLocalFile() {
+    RNFetchBlob.fs.readFile('/storage/emulated/0/Download/Vizsence.json', 'utf8')
+      .then((resp) => {
+        console.log("local file read :- ", resp.type);
+        // const d = JSON.parse(resp);
+        // console.log("d.type :-",d.type)
+        // this.setState({ content: resp, fruitType: d.type });
+      })
+      .catch((err) => {
+        console.log(err.message, err.code);
+      });
+  }
+
+
   render() {
     return (
       <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
-        <Button title='Download' onPress={() => this.checkPermission()} />
+        <Button title='Download' onPress={() => this.deleteLocalFile()} />
       </View>
     )
   }
